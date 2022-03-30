@@ -21,10 +21,7 @@ class Linear(torch.nn.Module):
         self.weight = None
 
         # 初始化特征管理器
-        self.features = Features(columns=feature_columns,
-                                 is_linear=True,
-                                 init_std=init_std,
-                                 device=device)
+        self.features = Features(columns=feature_columns, linear=True, init_std=init_std, device=device)
 
         # 存在稠密特征的线性层，需初始化权重
         if len(self.features.dense_columns) > 0:

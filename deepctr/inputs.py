@@ -146,17 +146,17 @@ class Features(object):
     """特征管理器"""
 
     def __init__(self, columns: List[Union[SparseFeat, SequenceFeat, DenseFeat]],
-                 is_linear=False, init_std=1e-4, device='cpu'):
+                 linear=False, init_std=1e-4, device='cpu'):
         """
         实例化一个特征管理器。
 
         :param columns: 特征列数组
-        :param is_linear: 是否为线性层所需的特征管理器
+        :param linear: 是否为线性层所需的特征管理器
         :param init_std: 初始标准差
         :param device: 设备
         """
         self.columns = columns
-        self.is_linear = is_linear
+        self.is_linear = linear
         self.init_std = init_std
         self.device = device
 
@@ -175,6 +175,7 @@ class Features(object):
         """
         转换输入张量为值元组
 
+        :param X: TODO 形状是？
         返回元组：
             - 稀疏嵌入值列表（含序列稀疏特征嵌入值） sparse_emb_list
             - 稠密值列表 dense_value_list
@@ -225,24 +226,24 @@ class Features(object):
         index_dict: OrderedDict[str, Tuple[int, ...]] = OrderedDict()
 
         start = 0
-        for feat in self.columns:
-            name = feat.name
+        for fc in self.columns:
+            name = fc.name
             if name in index_dict:
                 continue
-            if isinstance(feat, SparseFeat):
+            if isinstance(fc, SparseFeat):
                 index_dict[name] = (start, start + 1)
                 start += 1
-            elif isinstance(feat, DenseFeat):
-                index_dict[name] = (start, start + feat.embedding_dim)
-                start += feat.embedding_dim
-            elif isinstance(feat, SequenceFeat):
-                index_dict[name] = (start, start + feat.maxlen)
-                start += feat.maxlen
-                if feat.length_name is not None and feat.length_name not in index_dict:
-                    index_dict[feat.length_name] = (start, start + 1)
+            elif isinstance(fc, DenseFeat):
+                index_dict[name] = (start, start + fc.embedding_dim)
+                start += fc.embedding_dim
+            elif isinstance(fc, SequenceFeat):
+                index_dict[name] = (start, start + fc.maxlen)
+                start += fc.maxlen
+                if fc.length_name is not None and fc.length_name not in index_dict:
+                    index_dict[fc.length_name] = (start, start + 1)
                     start += 1
             else:
-                raise TypeError('无效特征列类型: ', type(feat))
+                raise TypeError('无效特征列类型: ', type(fc))
 
         return index_dict
 
@@ -253,8 +254,8 @@ class Features(object):
         :return: 特征字典 nn.ModuleDict{特征嵌入名称：nn.Embedding}
         """
         embedding_dict = nn.ModuleDict({
-            feat.embedding_name: nn.Embedding(feat.vocabulary_size, feat.embedding_dim if not self.is_linear else 1)
-            for feat in self.sparse_columns + self.sequence_columns
+            fc.embedding_name: nn.Embedding(fc.vocabulary_size, fc.embedding_dim if not self.is_linear else 1)
+            for fc in self.sparse_columns + self.sequence_columns
         })
 
         # 初始化线性层嵌入模块权重的标准差
