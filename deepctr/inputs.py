@@ -318,9 +318,9 @@ class Features(object):
         for feat in self.sequence_columns:
             seq_emb = seq_emb_dict[feat.name]
             if feat.length_name is None:
-                mas = X[:, self.index_dict[feat.name][0]:self.index_dict[feat.name][1]].long() != 0
+                mask = X[:, self.index_dict[feat.name][0]:self.index_dict[feat.name][1]].long() != 0
                 emb = SequencePoolingLayer(mode=feat.combiner, support_masking=True, device=self.device).forward(
-                    [seq_emb, mas])
+                    [seq_emb, mask])
             else:
                 seq_length = X[:, self.index_dict[feat.length_name][0]:self.index_dict[feat.length_name][1]].long()
                 emb = SequencePoolingLayer(mode=feat.combiner, support_masking=False, device=self.device).forward(

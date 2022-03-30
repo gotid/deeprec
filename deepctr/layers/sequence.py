@@ -4,18 +4,7 @@ from torch import Tensor
 
 
 class SequencePoolingLayer(nn.Module):
-    """用于变长序列特征或多值特征的池化操作(sum, mean, max)模块。
-
-    输入形状：
-        - 一个包含两个张量的列表 [seq_value, seq_list]
-
-        - seq_value 是一个三维张量：`(batch_size, T, embedding_size)`
-
-        - seq_len 是一个二维张量  ：`(batch_size, 1)`，表示每个序列的有效长度
-
-    输出形状：
-        - 三维张量：`(batch_size, 1, embedding_size)`
-    """
+    """用于变长序列特征或多值特征的池化操作(sum, mean, max)模块。"""
 
     def __init__(self, mode='mean', support_masking=False, device='cpu'):
         super(SequencePoolingLayer, self).__init__()
@@ -40,6 +29,17 @@ class SequencePoolingLayer(nn.Module):
         return mask
 
     def forward(self, seq_value_len_list) -> Tensor:
+        """
+        输入形状：
+            - 一个包含两个张量的列表 [seq_value, seq_list]
+
+            - seq_value 是一个三维张量：`(batch_size, T, embedding_size)`
+
+            - seq_len 是一个二维张量  ：`(batch_size, 1)`，表示每个序列的有效长度
+
+        :param seq_value_len_list: [seq_value, seq_list]
+        :return: 三维张量：`(batch_size, 1, embedding_size)`
+        """
         if self.support_masking:
             seq_emb_list, mask = seq_value_len_list  # [B, T, E], [B, 1]
             mask = mask.float()

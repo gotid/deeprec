@@ -1,5 +1,3 @@
-import torch
-
 from deepctr.inputs import *
 
 
