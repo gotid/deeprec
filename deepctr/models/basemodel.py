@@ -136,7 +136,7 @@ class BaseModel(torch.nn.Module):
 
     @classmethod
     def ndim(cls, features: FeatList, sparse=True, dense=True, group=False):
-        """返回特征列表的总维度"""
+        """返回模型特征的总维度"""
         total_dim = 0
 
         # 提取特征
@@ -157,3 +157,8 @@ class BaseModel(torch.nn.Module):
             total_dim += dense_input_dim
 
         return total_dim
+
+    def rebuild_feature_index(self, feature_columns):
+        """为了单独预测 user/item vector，需重算特征列索引位置"""
+        self.feature_idx_dict = index_features(feature_columns)
+        return self

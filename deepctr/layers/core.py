@@ -7,6 +7,97 @@ import torch.nn.functional as F
 from .activation import activation_layer
 
 
+class DNN(nn.Module):
+    def __init__(self,
+                 input_dim,
+                 hidden_units,
+                 activation='relu',
+                 dropout_rate=0,
+                 use_bn=False,
+                 init_std=1e-4,
+                 dice_dim=3,
+                 seed=1024,
+                 device='cpu'):
+        """实例化多层感知机。
+
+        :param input_dim: 输入特征维度
+        :param hidden_units: 正整数列表，层数和单元
+        :param activation: 使用的激活函数
+        :param dropout_rate: [0., 1.) 随机归零的概率
+        :param use_bn: 激活前是否进行批量规格化
+        :param init_std: 正态分布的标准差
+        :param dice_dim: Dice 维数，2维|3维
+        :param seed: 随机种子数
+        """
+        super(DNN, self).__init__()
+        self.dropout_rate = dropout_rate
+        self.dropout = nn.Dropout(dropout_rate)
+        self.seed = seed
+        self.use_bn = use_bn
+        if len(hidden_units) == 0:
+            raise ValueError('hidden_units 为空!!')
+        hidden_units = [input_dim] + list(hidden_units)
+
+        # 线性隐藏层
+        self.linears = nn.ModuleList([nn.Linear(hidden_units[i], hidden_units[i + 1])
+                                      for i in range(len(hidden_units) - 1)])
+
+        # 批量归一层
+        if self.use_bn:
+            self.bn = nn.ModuleList([nn.BatchNorm1d(hidden_units[i + 1])
+                                     for i in range(len(hidden_units) - 1)])
+
+        # 激活层
+        self.activation_layers = nn.ModuleList([activation_layer(activation, hidden_units[i + 1], dice_dim)
+                                                for i in range(len(hidden_units) - 1)])
+
+        # 归一值
+        for name, parameter in self.linears.named_parameters():
+            if 'weight' in name:
+                nn.init.normal_(parameter, mean=0, std=init_std)
+
+        self.to(device)
+
+    def forward(self, inputs):
+        deep_input = inputs
+
+        for i in range(len(self.linears)):
+            fc = self.linears[i](deep_input)
+            if self.use_bn:
+                fc = self.bn[i](fc)
+            fc = self.activation_layers[i](fc)
+            fc = self.dropout(fc)
+            deep_input = fc
+
+        return deep_input
+
+
+class PredictionLayer(nn.Module):
+    def __init__(self, task='binary', use_bias=True, **kwargs):
+        """
+        根据任务调整预测输出。
+
+        :param task: 预测任务，支持 binary|multiclass|regression
+        :param use_bias: 是否添加偏差值
+        """
+        if task not in ['binary', 'multiclass', 'regression']:
+            raise ValueError('task 必须为 binary|multiclass|regression')
+
+        super(PredictionLayer, self).__init__()
+        self.use_bias = use_bias
+        self.task = task
+        if self.use_bias:
+            self.bias = nn.Parameter(torch.zeros((1,)))
+
+    def forward(self, X):
+        output = X
+        if self.use_bias:
+            output += self.bias
+        if self.task == 'binary':
+            output = torch.sigmoid(output)
+        return output
+
+
 class LocalActivationUnit(nn.Module):
     """深度兴趣网络中使用 LocalActivationUnit 表示给定不同的候选项目，用户兴趣会自适应地变化。"""
 
@@ -53,100 +144,6 @@ class LocalActivationUnit(nn.Module):
         attention_score = self.dense(attention_output)  # [batch_size, time_seq_len, 1]
 
         return attention_score
-
-
-class DNN(nn.Module):
-    def __init__(self,
-                 input_dim,
-                 hidden_units,
-                 activation='relu',
-                 l2_reg=0,
-                 dropout_rate=0,
-                 use_bn=False,
-                 init_std=1e-4,
-                 dice_dim=3,
-                 seed=1024,
-                 device='cpu'):
-        """实例化多层感知机。
-
-        :param input_dim: 输入特征维度
-        :param hidden_units: 正整数列表，层数和单元
-        :param activation: 使用的激活函数
-        :param l2_reg: [0., 1.]，内核权重矩阵的L2正则化器
-        :param dropout_rate: [0., 1.) 随机归零的概率
-        :param use_bn: 激活前是否进行批量规格化
-        :param init_std: 正态分布的标准差
-        :param dice_dim: Dice 维数，2维|3维
-        :param seed: 随机种子数
-        """
-        super(DNN, self).__init__()
-        self.dropout_rate = dropout_rate
-        self.dropout = nn.Dropout(dropout_rate)
-        self.seed = seed
-        self.l2_reg = l2_reg
-        self.use_bn = use_bn
-        if len(hidden_units) == 0:
-            raise ValueError('hidden_units 为空!!')
-        hidden_units = [input_dim] + list(hidden_units)
-
-        # 线性隐藏层
-        self.linears = nn.ModuleList(
-            [nn.Linear(hidden_units[i], hidden_units[i + 1]) for i in range(len(hidden_units) - 1)])
-
-        # 批量规范层
-        if self.use_bn:
-            self.bn = nn.ModuleList(
-                [nn.BatchNorm1d(hidden_units[i + 1]) for i in range(len(hidden_units) - 1)])
-
-        # 激活层
-        self.activation_layers = nn.ModuleList(
-            [activation_layer(activation, hidden_units[i + 1], dice_dim) for i in range(len(hidden_units) - 1)])
-
-        # 归一值
-        for name, tensor in self.linears.named_parameters():
-            if 'weight' in name:
-                nn.init.normal_(tensor, mean=0, std=init_std)
-
-        self.to(device)
-
-    def forward(self, inputs):
-        deep_input = inputs
-
-        for i in range(len(self.linears)):
-            fc = self.linears[i](deep_input)
-            if self.use_bn:
-                fc = self.bn[i](fc)
-            fc = self.activation_layers[i](fc)
-            fc = self.dropout(fc)
-            deep_input = fc
-
-        return deep_input
-
-
-class PredictionLayer(nn.Module):
-    def __init__(self, task='binary', use_bias=True, **kwargs):
-        """
-        根据任务调整预测输出。
-        
-        :param task: 预测任务，支持 binary|multiclass|regression
-        :param use_bias: 是否添加偏差值
-        """
-        if task not in ['binary', 'multiclass', 'regression']:
-            raise ValueError('task 必须为 binary|multiclass|regression')
-
-        super(PredictionLayer, self).__init__()
-        self.use_bias = use_bias
-        self.task = task
-        if self.use_bias:
-            self.bias = nn.Parameter(torch.zeros((1,)))
-
-    def forward(self, X):
-        output = X
-        if self.use_bias:
-            output += self.bias
-        if self.task == 'binary':
-            output = torch.sigmoid(output)
-        return output
 
 
 class Conv2dSame(nn.Conv2d):

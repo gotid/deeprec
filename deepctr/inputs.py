@@ -268,8 +268,7 @@ def get_feature_values(X: Tensor,
     sparse_emb_list += seq_emb_list
 
     # 提取稠密值列表
-    dense_value_list = [X[: idx_dict[feat.name][0]:idx_dict[feat.name][1]]
-                        for feat in dense_features] if len(dense_features) else []
+    dense_value_list = [X[: idx_dict[feat.name][0]:idx_dict[feat.name][1]] for feat in dense_features]
 
     return sparse_emb_list, dense_value_list
 

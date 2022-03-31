@@ -1,3 +1,5 @@
+from typing import Union
+
 import torch
 from torch import nn, Tensor
 
@@ -50,33 +52,33 @@ class Identity(nn.Module):
         return inputs
 
 
-def activation_layer(act_name, num_features: int = None, dice_dim=2):
+def activation_layer(activation: Union[type, str, nn.Module], num_features: int = None, dice_dim=2):
     """
     构建激活层
 
-    :param act_name: 激活函数名称或 nn.Module
+    :param activation: 激活函数名称或 nn.Module
     :param num_features: 用于 Dice 激活
     :param dice_dim: 用于 Dice 激活，2维|3维
     :return: 激活层
     """
     act_layer = None
 
-    if isinstance(act_name, str):
-        if act_name.lower() == 'sigmoid':
+    if isinstance(activation, str):
+        if activation.lower() == 'sigmoid':
             act_layer = nn.Sigmoid()
-        elif act_name.lower() == 'linear':
+        elif activation.lower() == 'linear':
             act_layer = Identity()
-        elif act_name.lower() == 'relu':
+        elif activation.lower() == 'relu':
             act_layer = nn.ReLU(inplace=True)
-        elif act_name.lower() == 'dice':
+        elif activation.lower() == 'dice':
             assert dice_dim
             act_layer = Dice(num_features, dice_dim)
-        elif act_name.lower() == 'prelu':
+        elif activation.lower() == 'prelu':
             act_layer = nn.PReLU()
-    elif issubclass(act_name, nn.Module):
-        act_layer = act_name()
+    elif issubclass(activation, nn.Module):
+        act_layer = activation()
     else:
-        raise NotImplementedError
+        raise ValueError(f'无效的 activation: {activation}。你可使用 str 或 torch.nn.modules.activation')
 
     return act_layer
 
