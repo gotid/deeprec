@@ -4,7 +4,7 @@ sys.path.append('../')
 
 import pandas as pd
 from deepmatch.models import YouTubeDNN
-from deepctr.inputs import SparseFeat, SequenceFeat
+from deepctr.inputs import SparseFeat, SeqFeat
 from sklearn.preprocessing import LabelEncoder
 import torch.nn.functional as F
 
@@ -113,14 +113,14 @@ def gen_data_set_youteube(data, negsample=5):
     return train_set, test_set
 
 
-def gen_model_input(train_set, user_profile, seq_max_len):
+def gen_model_input(train_set, user_profile, seq_maxlen):
     train_uid = np.array([line[0] for line in train_set])
     train_seq = [line[1] for line in train_set]
     train_iid = np.array([line[2] for line in train_set])
     train_label = np.array([line[3] for line in train_set])
     train_hist_len = np.array([line[4] for line in train_set])
 
-    train_seq_pad = pad_sequences(train_seq, maxlen=seq_max_len, padding='post', truncating='post', value=0)
+    train_seq_pad = pad_sequences(train_seq, maxlen=seq_maxlen, padding='post', truncating='post', value=0)
     train_model_input = {"user_id": train_uid, "movie_id": train_iid, "hist_movie_id": train_seq_pad,
                          "hist_len": train_hist_len}
 
@@ -169,14 +169,14 @@ if __name__ == '__main__':
                             SparseFeat('age', feature_max_idx['age'], embedding_dim),
                             SparseFeat('occupation', feature_max_idx['occupation'], embedding_dim),
                             SparseFeat('zip', feature_max_idx['zip'], embedding_dim),
-                            SequenceFeat(SparseFeat('hist_movie_id',
-                                                    vocabulary_size=feature_max_idx['movie_id'],
-                                                    embedding_dim=embedding_dim,
-                                                    embedding_name='movie_id'), maxlen=10, combiner='mean')]
+                            SeqFeat(SparseFeat('hist_movie_id',
+                                               vocab_size=feature_max_idx['movie_id'],
+                                               emb_dim=embedding_dim,
+                                               emb_name='movie_id'), maxlen=10, combiner='mean')]
 
     item_feature_columns = [
-        SequenceFeat(SparseFeat('movie_id', feature_max_idx['movie_id'], embedding_dim, embedding_name='movie_id'),
-                     maxlen=6, combiner='mean')]
+        SeqFeat(SparseFeat('movie_id', feature_max_idx['movie_id'], embedding_dim, emb_name='movie_id'),
+                maxlen=6, combiner='mean')]
 
     # 定义模型并训练
     model = YouTubeDNN(user_feature_columns,

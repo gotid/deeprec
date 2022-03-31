@@ -8,8 +8,8 @@ import torch.nn.functional as F
 from pytorch_lightning import LightningModule, Trainer
 from torch.utils.data import TensorDataset, DataLoader
 
-from deepctr.inputs import build_feature_index, create_embedding_dict, SparseFeat, DenseFeat, SequenceFeat, \
-    sequence_embedding_lookup, get_sequence_pooling_list
+from deepctr.inputs import build_feature_index, create_embedding_dict, SparseFeat, DenseFeat, SeqFeat, \
+    sequence_embedding_lookup, get_seq_pooling_list
 
 
 class PLBaseModel(LightningModule):
@@ -292,22 +292,22 @@ class PLBaseModel(LightningModule):
 
         # 提取变长稀疏特征列
         varlen_sparse_feature_columns = list(
-            filter(lambda x: isinstance(x, SequenceFeat), feature_columns)) if len(
+            filter(lambda x: isinstance(x, SeqFeat), feature_columns)) if len(
             feature_columns) else []
 
         if len(dense_feature_columns) > 0 and not support_dense:
             return ValueError('dense_feature_columns 不支持 DenseFeat ')
 
         # 生成稀疏特征嵌入值列表
-        sparse_emb_list = [embedding_dict[feat.embedding_name](
+        sparse_emb_list = [embedding_dict[feat.emb_name](
             X[:, self.feature_index[feat.name][0]:self.feature_index[feat.name][1]].long())
             for feat in sparse_feature_columns]
 
         # 生成变长稀疏特征嵌入值字典（这里返回的就是 item 的 embedding）
         seq_emb_dict = sequence_embedding_lookup(X, self.embedding_dict, self.feature_index,
                                                  varlen_sparse_feature_columns)
-        varlen_sparse_emb_list = get_sequence_pooling_list(seq_emb_dict, X, self.feature_index,
-                                                           varlen_sparse_feature_columns, self.device)
+        varlen_sparse_emb_list = get_seq_pooling_list(seq_emb_dict, X, self.feature_index,
+                                                      varlen_sparse_feature_columns, self.device)
 
         # 生成稠密特征值列表
         dense_value_list = [X[:, self.feature_index[feat.name][0]:self.feature_index[feat.name][1]]
@@ -328,7 +328,7 @@ class PLBaseModel(LightningModule):
         """
         # 提取稀疏特征列（包括变长稀疏特征列）
         sparse_feature_columns = list(
-            filter(lambda x: isinstance(x, (SparseFeat, SequenceFeat)), feature_columns)) if len(
+            filter(lambda x: isinstance(x, (SparseFeat, SeqFeat)), feature_columns)) if len(
             feature_columns) else []
 
         # 提取稠密特征列
@@ -342,7 +342,7 @@ class PLBaseModel(LightningModule):
         if feature_group:
             sparse_input_dim = len(sparse_feature_columns)
         else:
-            sparse_input_dim = sum(feat.embedding_dim for feat in sparse_feature_columns)
+            sparse_input_dim = sum(feat.emb_dim for feat in sparse_feature_columns)
 
         input_dim = 0
         if include_sparse:
@@ -384,7 +384,7 @@ class Linear(nn.Module):
 
         # 提取变长稀疏特征列
         self.varlen_sparse_feature_columns = list(
-            filter(lambda x: isinstance(x, SequenceFeat), feature_columns)) if len(feature_columns) else []
+            filter(lambda x: isinstance(x, SeqFeat), feature_columns)) if len(feature_columns) else []
 
         # 创建稀疏特征词典（含变长稀疏特征列，不含稠密特征列）
         self.embedding_dict = create_embedding_dict(feature_columns, init_std, linear=True, device=device)
@@ -400,7 +400,7 @@ class Linear(nn.Module):
     def forward(self, X, sparse_feat_refine_weight=None):
         # 生成稀疏特征的嵌入值列表
         sparse_emb_list = [
-            self.embedding_dict[feat.embedding_name](
+            self.embedding_dict[feat.emb_name](
                 X[: self.feature_index[feat.name][0]:self.feature_index[feat.name][1]].long()
             ) for feat in self.sparse_feature_columns
         ]
@@ -413,8 +413,8 @@ class Linear(nn.Module):
         seq_emb_dict = sequence_embedding_lookup(X, self.embedding_dict, self.feature_index,
                                                  self.varlen_sparse_feature_columns)
         # 获取变长稀疏特征的嵌入值列表
-        varlen_emb_list = get_sequence_pooling_list(seq_emb_dict, X, self.feature_index,
-                                                    self.varlen_sparse_feature_columns, self.device)
+        varlen_emb_list = get_seq_pooling_list(seq_emb_dict, X, self.feature_index,
+                                               self.varlen_sparse_feature_columns, self.device)
 
         # 合并稀疏特征值和变长稀疏特征值
         sparse_emb_list += varlen_emb_list

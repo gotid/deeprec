@@ -3,7 +3,7 @@ import pandas as pd
 import torch
 from torch.utils.data import TensorDataset
 
-from deepctr.inputs import SparseFeat, build_feature_index
+from deepctr.inputs import SparseFeat, index_features
 from deepctr.layers import DNN, FM
 from deepctr.models.basemodel import Linear
 
@@ -73,12 +73,13 @@ def test_cat():
 
 
 def test_linear():
-    feature_columns = [SparseFeat('user_id', vocabulary_size=10, embedding_dim=4, group_name='user')]
-    linear = Linear(feature_columns, init_std=1e-4)
-    inputs = torch.rand(2, 1)
+    features = [SparseFeat('user_id', vocab_size=10, emb_dim=4, group_name='user', dtype='int32')]
+    feature_idx_dict = index_features(features)
+    linear = Linear(features, feature_idx_dict, init_std=1e-4)
+    inputs = torch.from_numpy(np.array([[5], [9]]))  # 最大值需要小于词汇量
 
+    print()
     print('inputs', inputs.detach().numpy().flatten())
-    print('inputs[0][0]', inputs[0][0].long())
     # print(list(linear.parameters()))
     print(linear.forward(inputs))
 
@@ -90,5 +91,12 @@ def test_unsqueeze():
     print(x.squeeze())
 
 
+def test_square():
+    torch.manual_seed(2022)
+    param = torch.Tensor(2)
+    print(torch.square(param))
+    print(param * param)
+
+
 if __name__ == '__main__':
-    test_linear()
+    test_square()

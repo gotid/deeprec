@@ -2,15 +2,15 @@ from deepctr.inputs import *
 
 
 def get_xy_fd(use_neg=True):
-    feature_columns = [SparseFeat('user', 4, embedding_dim=4),
-                       SparseFeat('gender', 2, embedding_dim=4),
-                       SparseFeat('item_id', 3 + 1, embedding_dim=8),
-                       SparseFeat('cate_id', 2 + 1, embedding_dim=4),
-                       DenseFeat('pay_score', 1),
-                       SequenceFeat(SparseFeat('hist_item_id', 3 + 1, embedding_dim=8, embedding_name='item_id'),
-                                    maxlen=4, length_name='seq_length'),
-                       SequenceFeat(SparseFeat('hist_cate_id', 2 + 1, embedding_dim=4, embedding_name='cate_id'),
-                                    maxlen=4, length_name='seq_length')]
+    features = [SparseFeat('user', 4, emb_dim=4),
+                SparseFeat('gender', 2, emb_dim=4),
+                SparseFeat('item_id', 3 + 1, emb_dim=8),
+                SparseFeat('cate_id', 2 + 1, emb_dim=4),
+                DenseFeat('pay_score', 1),
+                SeqFeat(SparseFeat('hist_item_id', 3 + 1, emb_dim=8, emb_name='item_id'),
+                        maxlen=4, length_name='seq_length'),
+                SeqFeat(SparseFeat('hist_cate_id', 2 + 1, emb_dim=4, emb_name='cate_id'),
+                        maxlen=4, length_name='seq_length')]
 
     uid = np.array([0, 1, 2, 3])
     gender = np.array([0, 1, 0, 1])
@@ -30,15 +30,14 @@ def get_xy_fd(use_neg=True):
     if use_neg:
         feature_dict['neg_hist_item_id'] = np.array([[1, 2, 3, 0], [1, 2, 3, 0], [1, 2, 0, 0], [1, 2, 0, 0]])
         feature_dict['neg_hist_cate_id'] = np.array([[1, 1, 2, 0], [2, 1, 1, 0], [2, 1, 1, 0], [1, 2, 0, 0]])
-        feature_columns += [
-            SequenceFeat(SparseFeat('neg_hist_item_id', 3 + 1, embedding_dim=8, embedding_name='item_id'),
-                         maxlen=4, length_name='seq_length'),
-            SequenceFeat(SparseFeat('neg_hist_cate_id', 2 + 1, embedding_dim=4, embedding_name='cate_id'),
-                         maxlen=4, length_name='seq_length')]
+        features += [
+            SeqFeat(SparseFeat('neg_hist_item_id', 3 + 1, emb_dim=8, emb_name='item_id'),
+                    maxlen=4, length_name='seq_length'),
+            SeqFeat(SparseFeat('neg_hist_cate_id', 2 + 1, emb_dim=4, emb_name='cate_id'),
+                    maxlen=4, length_name='seq_length')]
 
-    features = Features(feature_columns)
-
-    x = {name: feature_dict[name] for name in features.names}
+    idx_dict = index_features(features)
+    x = {name: feature_dict[name] for name in get_feature_names(idx_dict)}
     y = np.array([1, 0, 1, 0])
 
     behavior_feature_list = ['item_id', 'cate_id']
@@ -55,4 +54,5 @@ if __name__ == '__main__':
         print('cuda ready...')
         device = 'cuda:0'
 
-    print(device)
+    print('x', x)
+    print('y', y)

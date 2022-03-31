@@ -126,8 +126,8 @@ class DNN(nn.Module):
 class PredictionLayer(nn.Module):
     def __init__(self, task='binary', use_bias=True, **kwargs):
         """
-        预测层
-
+        根据任务调整预测输出。
+        
         :param task: 预测任务，支持 binary|multiclass|regression
         :param use_bias: 是否添加偏差值
         """
